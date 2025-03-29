@@ -113,6 +113,7 @@ impl<T: Send + Sync + 'static + Clone, W: WidgetExt + WidgetBase + 'static + Clo
                 app::awake();
             });
         };
+        func();
         self.handle(move |_w, ev| {
             if ev == STATE_CHANGED {
                 func();
@@ -180,13 +181,49 @@ impl<State: 'static + Send + Sync> Runner<State> for app::App {
     }
 }
 
-pub async fn use_state_mut<State: 'static, F: FnMut(&mut State) + Clone>(f: F) {
+pub fn use_state_mut<
+    Fut: Send + 'static + Future<Output = ()>,
+    State: 'static + Clone,
+    F: (FnMut(Arc<State>) -> Fut) + Clone + Send + 'static,
+>(
+    f: F,
+) {
     let mut f = f.clone();
-    f(STATE.lock().await.as_mut().unwrap().downcast_mut().unwrap());
-    app::handle_main(STATE_CHANGED).ok();
+    tokio::spawn(async move {
+        f(Arc::new(
+            STATE
+                .lock()
+                .await
+                .as_mut()
+                .unwrap()
+                .downcast_mut::<State>()
+                .unwrap()
+                .clone(),
+        ))
+        .await;
+        app::handle_main(STATE_CHANGED).ok();
+    });
 }
 
-pub async fn use_state<State: 'static, F: FnMut(&State) + Clone>(f: F) {
+pub fn use_state<
+    Fut: Send + 'static + Future<Output = ()>,
+    State: 'static + Clone,
+    F: (FnMut(Arc<State>) -> Fut) + Clone + Send + 'static,
+>(
+    f: F,
+) {
     let mut f = f.clone();
-    f(STATE.lock().await.as_ref().unwrap().downcast_ref().unwrap());
+    tokio::spawn(async move {
+        f(Arc::new(
+            STATE
+                .lock()
+                .await
+                .as_ref()
+                .unwrap()
+                .downcast_ref::<State>()
+                .unwrap()
+                .clone(),
+        ))
+        .await;
+    });
 }
