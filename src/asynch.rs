@@ -24,7 +24,9 @@ pub trait WidgetObserver<T: 'static, W> {
         &mut self,
         l: Listen,
     ) where
+        T: Clone,
         Self: Sized;
+    fn set_action_sync<Listen: Clone + 'static + Fn(&mut T, &Self)>(&mut self, l: Listen);
     fn set_view<
         Fut: Send + Future<Output = ()> + 'static,
         Update: Send + Sync + Clone + 'static + Fn(Arc<T>, Self) -> Fut,
@@ -32,7 +34,9 @@ pub trait WidgetObserver<T: 'static, W> {
         &mut self,
         u: Update,
     ) where
+        T: Clone,
         Self: Sized;
+    fn set_view_sync<Update: Clone + 'static + Fn(&T, &mut Self)>(&mut self, u: Update);
 }
 
 pub trait MenuObserver<T, W> {
@@ -46,10 +50,18 @@ pub trait MenuObserver<T, W> {
         flags: MenuFlag,
         l: Listen,
     ) where
+        T: Clone,
         Self: Sized;
+    fn add_action_sync<Listen: Clone + 'static + Fn(&mut T, &Self)>(
+        &mut self,
+        label: &str,
+        shortcut: Shortcut,
+        flags: MenuFlag,
+        l: Listen,
+    );
 }
 
-impl<T: Send + Sync + 'static + Clone, W: WidgetExt + WidgetBase + 'static + Clone + Send>
+impl<T: Send + Sync + 'static, W: WidgetExt + WidgetBase + 'static + Clone + Send>
     WidgetObserver<T, W> for W
 {
     fn set_action<
@@ -58,7 +70,8 @@ impl<T: Send + Sync + 'static + Clone, W: WidgetExt + WidgetBase + 'static + Clo
     >(
         &mut self,
         l: Listen,
-    ) {
+    ) where T: Clone,
+    {
         self.set_callback(move |w| {
             let w = w.clone();
             let l = l.clone();
@@ -84,13 +97,32 @@ impl<T: Send + Sync + 'static + Clone, W: WidgetExt + WidgetBase + 'static + Clo
         });
     }
 
+    fn set_action_sync<Listen: Clone + 'static + Fn(&mut T, &Self)>(&mut self, l: Listen) {
+        self.set_callback(move |w| {
+            let w = w.clone();
+            let l = l.clone();
+            l(
+                STATE
+                    .blocking_lock()
+                    .as_mut()
+                    .unwrap()
+                    .downcast_mut()
+                    .unwrap(),
+                &w,
+            );
+            app::handle_main(STATE_CHANGED).ok();
+        });
+    }
+
     fn set_view<
         Fut: Send + Future<Output = ()> + 'static,
         Update: Send + Sync + Clone + 'static + Fn(Arc<T>, Self) -> Fut,
     >(
         &mut self,
         u: Update,
-    ) {
+    ) where
+    T: Clone, 
+    {
         let w = self.clone();
         let func = move || {
             let w = w.clone();
@@ -121,9 +153,33 @@ impl<T: Send + Sync + 'static + Clone, W: WidgetExt + WidgetBase + 'static + Clo
             false
         });
     }
+
+    fn set_view_sync<Update: Clone + 'static + Fn(&T, &mut Self)>(&mut self, u: Update) {
+        let w = self.clone();
+        let func = move || {
+            let mut w = w.clone();
+            let u = u.clone();
+            u(
+                STATE
+                    .blocking_lock()
+                    .as_ref()
+                    .unwrap()
+                    .downcast_ref()
+                    .unwrap(),
+                &mut w,
+            );
+        };
+        func();
+        self.handle(move |_w, ev| {
+            if ev == STATE_CHANGED {
+                func();
+            }
+            false
+        });
+    }
 }
 
-impl<T: Send + Sync + 'static + Clone, W: MenuExt + 'static + Clone + Send> MenuObserver<T, W>
+impl<T: Send + Sync + 'static, W: MenuExt + 'static + Clone + Send> MenuObserver<T, W>
     for W
 {
     fn add_action<
@@ -135,7 +191,8 @@ impl<T: Send + Sync + 'static + Clone, W: MenuExt + 'static + Clone + Send> Menu
         shortcut: Shortcut,
         flags: MenuFlag,
         l: Listen,
-    ) {
+    ) where T: Clone,
+    {
         self.add(label, shortcut, flags, move |w| {
             let w = w.clone();
             let l = l.clone();
@@ -158,6 +215,29 @@ impl<T: Send + Sync + 'static + Clone, W: MenuExt + 'static + Clone + Send> Menu
                 .await;
                 app::handle_main(STATE_CHANGED).ok();
             });
+        });
+    }
+
+    fn add_action_sync<Listen: Clone + 'static + Fn(&mut T, &Self)>(
+        &mut self,
+        label: &str,
+        shortcut: Shortcut,
+        flags: MenuFlag,
+        l: Listen,
+    ) {
+        self.add(label, shortcut, flags, move |w| {
+            let w = w.clone();
+            let l = l.clone();
+            l(
+                STATE
+                    .blocking_lock()
+                    .as_mut()
+                    .unwrap()
+                    .downcast_mut()
+                    .unwrap(),
+                &w,
+            );
+            app::handle_main(STATE_CHANGED).ok();
         });
     }
 }
@@ -226,4 +306,16 @@ pub fn use_state<
         ))
         .await;
     });
+}
+
+
+pub fn use_state_sync_mut<State: 'static, F: FnMut(&mut State) + Clone>(f: F) {
+    let mut f = f.clone();
+    f(STATE.blocking_lock().as_mut().unwrap().downcast_mut().unwrap());
+    app::handle_main(STATE_CHANGED).ok();
+}
+
+pub fn use_state_sync<State: 'static, F: FnMut(&State) + Clone>(f: F) {
+    let mut f = f.clone();
+    f(STATE.blocking_lock().as_ref().unwrap().downcast_ref().unwrap());
 }
