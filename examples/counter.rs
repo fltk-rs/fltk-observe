@@ -1,5 +1,5 @@
 use fltk::{app, button::Button, frame::Frame, group::Flex, prelude::*, window::Window};
-use fltk_observe::{Runner, WidgetObserver};
+use fltk_observe::sync::{Runner, WidgetObserver};
 
 struct Counter {
     value: i32,
@@ -46,8 +46,8 @@ fn main() {
     window.end();
     window.show();
 
-    fltk_observe::use_state_mut(|c: &mut Counter| c.value += 1);
-    fltk_observe::use_state_mut(Counter::just_decrement);
+    fltk_observe::sync::use_state_mut(|c: &mut Counter| c.value += 1);
+    fltk_observe::sync::use_state_mut(Counter::just_decrement);
 
     a.run().unwrap();
 }

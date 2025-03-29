@@ -1,5 +1,5 @@
 use fltk::{app, button::Button, prelude::*, window::Window};
-use fltk_observe::{Runner, WidgetObserver};
+use fltk_observe::sync::{Runner, WidgetObserver};
 
 struct Counter {
     value: i32,
