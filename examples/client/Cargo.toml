@@ -5,6 +5,6 @@ edition = "2024"
 
 [dependencies]
 fltk = "1.5"
-fltk-observe = { path = "../..", features = ["tokio"] }
+fltk-observe = { path = "../.." }
 tokio = { version = "1", features = ["full"] }
 reqwest = "0.12"

@@ -1,7 +1,6 @@
 use fltk::{prelude::*, *};
-use fltk_observe::asynch::{Runner, WidgetObserver};
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use fltk_observe::{Runner, WidgetObserver};
+use std::sync::{Arc, Mutex};
 
 #[derive(Default, Clone)]
 struct State {
@@ -9,25 +8,28 @@ struct State {
 }
 
 impl State {
-    pub async fn fetch(self: Arc<Self>, _b: Arc<button::Button>) {
+    pub fn fetch(&mut self, _b: &button::Button) {
         let value = self.value.clone();
-        *value.lock().await = reqwest::get("https://www.example.com")
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        tokio::spawn(async move {
+            *value.lock().unwrap() = reqwest::get("https://www.example.com")
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap();
+            fltk_observe::notify();
+        });
     }
 
-    pub async fn update_hv(self: Arc<Self>, mut hv: misc::HelpView) {
+    pub fn update_hv(&self, hv: &mut misc::HelpView) {
         let value = self.value.clone();
-        hv.set_value(&value.lock().await);
+        hv.set_value(&value.lock().unwrap());
     }
 }
 
 #[tokio::main]
 async fn main() {
-    let a = app::App::default().with_state(State::default).await;
+    let a = app::App::default().with_state(State::default);
     let mut w = window::Window::default().with_size(400, 300);
     let mut col = group::Flex::default_fill().column();
     let mut hv = misc::HelpView::default();

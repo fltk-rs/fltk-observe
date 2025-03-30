@@ -1,5 +1,5 @@
 use fltk::{enums::Shortcut, menu::MenuFlag, prelude::*, *};
-use fltk_observe::sync::*;
+use fltk_observe::*;
 
 struct Counter {
     value: i32,

@@ -7,7 +7,7 @@ use fltk::{
     prelude::*,
     window::Window,
 };
-use fltk_observe::sync::{Runner, WidgetObserver};
+use fltk_observe::{Runner, WidgetObserver};
 
 struct Counter {
     value: i32,
@@ -55,8 +55,8 @@ fn main() {
             f.redraw();
             true
         }
-        fltk_observe::sync::STATE_CHANGED => {
-            fltk_observe::sync::use_state({
+        fltk_observe::STATE_CHANGED => {
+            fltk_observe::use_state({
                 let mut f = f.clone();
                 move |s: &Counter| s.update_output(&mut f)
             });
