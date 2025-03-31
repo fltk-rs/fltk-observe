@@ -20,13 +20,13 @@ macro_rules! state_ref {
     () => {
         STATE
             .get()
-            .unwrap()
+            .expect("Global state not initialized.")
             .lock()
-            .unwrap()
+            .expect("Failed to lock global state.")
             .as_ref()
-            .unwrap()
+            .expect("Global state not initialized.")
             .downcast_ref()
-            .unwrap()
+            .expect("State type mismatch (did you init a different type?)")
     };
 }
 
@@ -34,13 +34,13 @@ macro_rules! state_mut {
     () => {
         STATE
             .get()
-            .unwrap()
+            .expect("Global state not initialized.")
             .lock()
-            .unwrap()
+            .expect("Failed to lock global state.")
             .as_mut()
-            .unwrap()
+            .expect("Global state not initialized.")
             .downcast_mut()
-            .unwrap()
+            .expect("State type mismatch (did you init a different type?)")
     };
 }
 
