@@ -1,0 +1,10 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+fltk = "1.5"
+fltk-observe = { path = "../.." }
+tokio = {version = "1", features = ["full"] }
+axum = "0.8"
