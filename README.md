@@ -45,7 +45,7 @@ impl Counter {
 }
 
 fn main() {
-    let a = app::App::default().with_state(Counter::new);
+    let a = app::App::default().use_state(Counter::new).unwrap();
 
     let mut window = Window::default().with_size(320, 240).with_label("Add data");
     let col = Flex::default_fill().column();
@@ -59,8 +59,8 @@ fn main() {
     window.end();
     window.show();
 
-    fltk_observe::use_state_mut(|c: &mut Counter| c.value += 1);
-    fltk_observe::use_state_mut(Counter::just_decrement);
+    fltk_observe::with_state_mut(|c: &mut Counter| c.value += 1);
+    fltk_observe::with_state_mut(Counter::just_decrement);
 
     a.run().unwrap();
 }
@@ -99,7 +99,7 @@ impl State {
 
 #[tokio::main]
 async fn main() {
-    let a = app::App::default().with_state(State::default);
+    let a = app::App::default().use_state(State::default).unwrap();
     let mut w = window::Window::default().with_size(400, 300);
     let mut col = group::Flex::default_fill().column();
     let mut hv = misc::HelpView::default();

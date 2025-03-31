@@ -7,11 +7,42 @@ use fltk::{
     menu::MenuFlag,
     prelude::*,
 };
-use std::{any::Any, sync::Mutex};
+use std::{
+    any::Any,
+    sync::{Mutex, OnceLock},
+};
 
 pub const STATE_CHANGED: Event = Event::from_i32(100);
 
-static STATE: Mutex<Option<Box<dyn Any + Send + Sync>>> = Mutex::new(None);
+static STATE: OnceLock<Mutex<Option<Box<dyn Any + Send + Sync>>>> = OnceLock::new();
+
+macro_rules! state_ref {
+    () => {
+        STATE
+            .get()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .downcast_ref()
+            .unwrap()
+    };
+}
+
+macro_rules! state_mut {
+    () => {
+        STATE
+            .get()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .downcast_mut()
+            .unwrap()
+    };
+}
 
 pub trait WidgetObserver<T, W> {
     fn set_action<Listen: Clone + 'static + Fn(&mut T, &Self)>(&mut self, l: Listen);
@@ -33,16 +64,7 @@ impl<T: Send + Sync + 'static, W: WidgetExt + WidgetBase + 'static + Clone> Widg
 {
     fn set_action<Listen: Clone + 'static + Fn(&mut T, &Self)>(&mut self, l: Listen) {
         self.set_callback(move |w| {
-            l(
-                STATE
-                    .lock()
-                    .unwrap()
-                    .as_mut()
-                    .unwrap()
-                    .downcast_mut()
-                    .unwrap(),
-                w,
-            );
+            l(state_mut!(), w);
             app::handle_main(STATE_CHANGED).ok();
         });
     }
@@ -51,16 +73,7 @@ impl<T: Send + Sync + 'static, W: WidgetExt + WidgetBase + 'static + Clone> Widg
         let w = self.clone();
         let func = move || {
             let mut w = w.clone();
-            u(
-                STATE
-                    .lock()
-                    .unwrap()
-                    .as_ref()
-                    .unwrap()
-                    .downcast_ref()
-                    .unwrap(),
-                &mut w,
-            );
+            u(state_ref!(), &mut w);
         };
         func();
         self.handle(move |_w, ev| {
@@ -81,59 +94,52 @@ impl<T: Send + Sync + 'static, W: MenuExt + 'static + Clone> MenuObserver<T, W> 
         l: Listen,
     ) {
         self.add(label, shortcut, flags, move |w| {
-            l(
-                STATE
-                    .lock()
-                    .unwrap()
-                    .as_mut()
-                    .unwrap()
-                    .downcast_mut()
-                    .unwrap(),
-                w,
-            );
+            l(state_mut!(), w);
             app::handle_main(STATE_CHANGED).ok();
         });
     }
 }
 
 pub trait Runner<State: 'static + Send + Sync> {
-    fn with_state<F: 'static + FnMut() -> State>(self, init: F) -> Self
+    fn use_state<F: 'static + FnOnce() -> State>(self, init: F) -> Option<Self>
     where
         Self: Sized;
 }
 
 impl<State: 'static + Send + Sync> Runner<State> for app::App {
-    fn with_state<F: 'static + FnMut() -> State>(self, mut init: F) -> Self
+    fn use_state<F: 'static + FnOnce() -> State>(self, init: F) -> Option<Self>
     where
         Self: Sized,
     {
-        *STATE.lock().unwrap() = Some(Box::new((init)()));
-        self
+        STATE.set(Mutex::new(Some(Box::new((init)())))).ok()?;
+        Some(self)
     }
 }
 
-pub fn use_state_mut<State: 'static, F: FnMut(&mut State) + Clone>(mut f: F) {
-    f(STATE
-        .lock()
-        .unwrap()
-        .as_mut()
-        .unwrap()
-        .downcast_mut()
-        .unwrap());
+pub fn with_state_mut<State: 'static, F: FnOnce(&mut State) + Clone>(f: F) {
+    f(state_mut!());
     app::handle_main(STATE_CHANGED).ok();
 }
 
-pub fn use_state<State: 'static, F: FnMut(&State) + Clone>(mut f: F) {
-    f(STATE
-        .lock()
-        .unwrap()
-        .as_ref()
-        .unwrap()
-        .downcast_ref()
-        .unwrap());
+pub fn with_state<State: 'static, F: FnOnce(&State) + Clone>(f: F) {
+    f(state_ref!());
 }
 
 pub fn notify() {
     app::handle_main(STATE_CHANGED).ok();
     app::awake();
+}
+
+#[doc(hidden)]
+pub fn on_state_changed(f: impl Fn() + 'static + Clone) {
+    let func = move || {
+        f();
+    };
+    let mut w = fltk::window::Window::from_dyn_widget(&app::first_window().unwrap()).unwrap();
+    w.handle(move |_w, ev| {
+        if ev == STATE_CHANGED {
+            func();
+        }
+        false
+    });
 }

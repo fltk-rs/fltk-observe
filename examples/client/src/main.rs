@@ -29,7 +29,7 @@ impl State {
 
 #[tokio::main]
 async fn main() {
-    let a = app::App::default().with_state(State::default);
+    let a = app::App::default().use_state(State::default).unwrap();
     let mut w = window::Window::default().with_size(400, 300);
     let mut col = group::Flex::default_fill().column();
     let mut hv = misc::HelpView::default();

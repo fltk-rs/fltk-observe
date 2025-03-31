@@ -36,7 +36,7 @@ impl Counter {
 }
 
 fn main() {
-    let a = app::App::default().with_state(Counter::new);
+    let a = app::App::default().use_state(Counter::new).unwrap();
 
     let mut window = Window::default().with_size(320, 240).with_label("Add data");
     let col = Flex::default_fill().column();
@@ -56,7 +56,7 @@ fn main() {
             true
         }
         fltk_observe::STATE_CHANGED => {
-            fltk_observe::use_state({
+            fltk_observe::with_state({
                 let mut f = f.clone();
                 move |s: &Counter| s.update_output(&mut f)
             });

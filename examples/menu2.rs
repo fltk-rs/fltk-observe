@@ -28,7 +28,7 @@ impl Counter {
 }
 
 fn main() {
-    let a = app::App::default().with_state(Counter::new);
+    let a = app::App::default().use_state(Counter::new).unwrap();
     let mut w = window::Window::default().with_size(400, 300);
     let mut col = group::Flex::default_fill().column();
     let mut menu = menu::MenuBar::default();

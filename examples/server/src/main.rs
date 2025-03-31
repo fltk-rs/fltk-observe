@@ -1,3 +1,5 @@
+// Try accessing localhost:3000 from the browser
+
 use axum::{Router, extract::Path, response::Html, routing::get};
 use fltk::{prelude::*, *};
 use fltk_observe::{Runner, WidgetObserver};
@@ -52,7 +54,7 @@ impl State {
 
 #[tokio::main]
 async fn main() {
-    let a = app::App::default().with_state(State::new);
+    let a = app::App::default().use_state(State::new).unwrap();
     let mut w = window::Window::default().with_size(400, 300);
     let mut f = frame::Frame::default_fill();
     f.set_view(State::update_label);
