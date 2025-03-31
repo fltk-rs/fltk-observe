@@ -14,7 +14,7 @@ use std::{
 
 pub const STATE_CHANGED: Event = Event::from_i32(100);
 
-static STATE: OnceLock<Mutex<Option<Box<dyn Any + Send + Sync>>>> = OnceLock::new();
+static STATE: OnceLock<Mutex<Box<dyn Any + Send + Sync>>> = OnceLock::new();
 
 macro_rules! state_ref {
     () => {
@@ -23,8 +23,6 @@ macro_rules! state_ref {
             .expect("Global state not initialized.")
             .lock()
             .expect("Failed to lock global state.")
-            .as_ref()
-            .expect("Global state not initialized.")
             .downcast_ref()
             .expect("State type mismatch (did you init a different type?)")
     };
@@ -37,8 +35,6 @@ macro_rules! state_mut {
             .expect("Global state not initialized.")
             .lock()
             .expect("Failed to lock global state.")
-            .as_mut()
-            .expect("Global state not initialized.")
             .downcast_mut()
             .expect("State type mismatch (did you init a different type?)")
     };
@@ -111,7 +107,7 @@ impl<State: 'static + Send + Sync> Runner<State> for app::App {
     where
         Self: Sized,
     {
-        STATE.set(Mutex::new(Some(Box::new((init)())))).ok()?;
+        STATE.set(Mutex::new(Box::new((init)()))).ok()?;
         Some(self)
     }
 }
@@ -128,18 +124,4 @@ pub fn with_state<State: 'static, F: FnOnce(&State) + Clone>(f: F) {
 pub fn notify() {
     app::handle_main(STATE_CHANGED).ok();
     app::awake();
-}
-
-#[doc(hidden)]
-pub fn on_state_changed(f: impl Fn() + 'static + Clone) {
-    let func = move || {
-        f();
-    };
-    let mut w = fltk::window::Window::from_dyn_widget(&app::first_window().unwrap()).unwrap();
-    w.handle(move |_w, ev| {
-        if ev == STATE_CHANGED {
-            func();
-        }
-        false
-    });
 }
