@@ -39,7 +39,7 @@ impl CounterView {
         let mut window = Window::default().with_size(300, 160).with_label("MVC (fltk-observe)");
         let mut flex = Flex::default_fill().column();
         let inc_btn = Button::default().with_label("Increment");
-        let display = Frame::default().with_label("0");
+        let display = Frame::default();
         let dec_btn = Button::default().with_label("Decrement");
         flex.end();
         window.end();
