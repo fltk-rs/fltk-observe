@@ -114,23 +114,15 @@ async fn main() {
 }
 ```
 
-fltk-observe also enables using an mvc pattern with fltk-rs:
+fltk-observe also enables using an mvvm or mvc pattern (check the examples) with fltk-rs:
 ```rust,no_run
-use fltk::{
-    app,
-    button::Button,
-    frame::Frame,
-    group::Flex,
-    prelude::*,
-    window::Window,
-};
-use fltk_observe::{Runner, WidgetObserver};
+use fltk::{app, button::Button, frame::Frame, group::Flex, prelude::*, window::Window};
 
-struct CounterModel {
+struct Counter {
     value: i32,
 }
 
-impl CounterModel {
+impl Counter {
     fn new() -> Self {
         Self { value: 0 }
     }
@@ -145,54 +137,73 @@ impl CounterModel {
     }
 }
 
+struct CounterViewModel {
+    model: Counter,
+}
+
+impl CounterViewModel {
+    fn new() -> Self {
+        Self {
+            model: Counter::new(),
+        }
+    }
+
+    fn increment(&mut self, _btn: &Button) {
+        self.model.increment();
+    }
+
+    fn decrement(&mut self, _btn: &Button) {
+        self.model.decrement();
+    }
+
+    fn update_display(&self, frame: &mut Frame) {
+        frame.set_label(&self.model.get_value().to_string());
+    }
+}
+
 struct CounterView {
-    pub window: Window,
-    pub inc_btn: Button,
-    pub dec_btn: Button,
-    pub display: Frame,
+    inc_btn: Button,
+    dec_btn: Button,
+    display: Frame,
 }
 
 impl CounterView {
     fn new() -> Self {
-        let mut window = Window::default().with_size(300, 160).with_label("MVC (fltk-observe)");
-        let mut flex = Flex::default_fill().column();
+        let mut window = Window::default()
+            .with_size(300, 160)
+            .with_label("MVVM (fltk-observe)");
+        let flex = Flex::default_fill().column();
         let inc_btn = Button::default().with_label("Increment");
         let display = Frame::default();
         let dec_btn = Button::default().with_label("Decrement");
         flex.end();
         window.end();
         window.show();
-        Self { window, inc_btn, dec_btn, display }
+        Self {
+            inc_btn,
+            dec_btn,
+            display,
+        }
     }
 }
 
-struct CounterController {
+struct CounterApp {
     app: app::App,
-    view: CounterView,
 }
 
-impl CounterController {
+impl CounterApp {
     fn new() -> Self {
+        use fltk_observe::{Runner, WidgetObserver};
         let app = app::App::default()
-            .use_state(CounterModel::new)
+            .use_state(CounterViewModel::new)
             .unwrap();
+
         let mut view = CounterView::new();
-        view.inc_btn.set_action(Self::handle_increment);
-        view.dec_btn.set_action(Self::handle_decrement);
-        view.display.set_view(Self::update_label);
-        Self { app, view }
-    }
+        view.inc_btn.set_action(CounterViewModel::increment);
+        view.dec_btn.set_action(CounterViewModel::decrement);
+        view.display.set_view(CounterViewModel::update_display);
 
-    fn handle_increment(model: &mut CounterModel, _btn: &Button) {
-        model.increment();
-    }
-
-    fn handle_decrement(model: &mut CounterModel, _btn: &Button) {
-        model.decrement();
-    }
-
-    fn update_label(model: &CounterModel, frame: &mut Frame) {
-        frame.set_label(&model.get_value().to_string());
+        Self { app }
     }
 
     fn run(&self) {
@@ -201,7 +212,7 @@ impl CounterController {
 }
 
 fn main() {
-    let controller = CounterController::new();
-    controller.run();
+    let app = CounterApp::new();
+    app.run();
 }
 ```

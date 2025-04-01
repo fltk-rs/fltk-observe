@@ -1,10 +1,10 @@
 use fltk::{app, button::Button, frame::Frame, group::Flex, prelude::*, window::Window};
 
-struct CounterModel {
+struct Counter {
     value: i32,
 }
 
-impl CounterModel {
+impl Counter {
     fn new() -> Self {
         Self { value: 0 }
     }
@@ -19,17 +19,41 @@ impl CounterModel {
     }
 }
 
+struct CounterViewModel {
+    model: Counter,
+}
+
+impl CounterViewModel {
+    fn new() -> Self {
+        Self {
+            model: Counter::new(),
+        }
+    }
+
+    fn increment(&mut self, _btn: &Button) {
+        self.model.increment();
+    }
+
+    fn decrement(&mut self, _btn: &Button) {
+        self.model.decrement();
+    }
+
+    fn update_display(&self, frame: &mut Frame) {
+        frame.set_label(&self.model.get_value().to_string());
+    }
+}
+
 struct CounterView {
-    pub inc_btn: Button,
-    pub dec_btn: Button,
-    pub display: Frame,
+    inc_btn: Button,
+    dec_btn: Button,
+    display: Frame,
 }
 
 impl CounterView {
     fn new() -> Self {
         let mut window = Window::default()
             .with_size(300, 160)
-            .with_label("MVC (fltk-observe)");
+            .with_label("MVVM (fltk-observe)");
         let flex = Flex::default_fill().column();
         let inc_btn = Button::default().with_label("Increment");
         let display = Frame::default();
@@ -45,31 +69,23 @@ impl CounterView {
     }
 }
 
-struct CounterController {
+struct CounterApp {
     app: app::App,
 }
 
-impl CounterController {
+impl CounterApp {
     fn new() -> Self {
         use fltk_observe::{Runner, WidgetObserver};
-        let app = app::App::default().use_state(CounterModel::new).unwrap();
+        let app = app::App::default()
+            .use_state(CounterViewModel::new)
+            .unwrap();
+
         let mut view = CounterView::new();
-        view.inc_btn.set_action(Self::handle_increment);
-        view.dec_btn.set_action(Self::handle_decrement);
-        view.display.set_view(Self::update_label);
+        view.inc_btn.set_action(CounterViewModel::increment);
+        view.dec_btn.set_action(CounterViewModel::decrement);
+        view.display.set_view(CounterViewModel::update_display);
+
         Self { app }
-    }
-
-    fn handle_increment(model: &mut CounterModel, _btn: &Button) {
-        model.increment();
-    }
-
-    fn handle_decrement(model: &mut CounterModel, _btn: &Button) {
-        model.decrement();
-    }
-
-    fn update_label(model: &CounterModel, frame: &mut Frame) {
-        frame.set_label(&model.get_value().to_string());
     }
 
     fn run(&self) {
@@ -78,6 +94,6 @@ impl CounterController {
 }
 
 fn main() {
-    let controller = CounterController::new();
-    controller.run();
+    let app = CounterApp::new();
+    app.run();
 }
